@@ -1,95 +1,94 @@
 import pyxel
+import random
 
-class TrainGame:
+class Train:
+    def __init__(self):
+        self.x = -200
+        self.y = 50
+        self.passengers = []
+
+    def move(self):
+        self.x += 15
+
+    def draw(self):
+        pyxel.blt(self.x, self.y, 0, 0, 0, 200, 96)
+        for passenger in self.passengers:
+            passenger.draw()
+
+class Passenger:
+    def __init__(self, x=None):
+        self.x = random.randint(-168, -32)
+        self.y = 82
+
+    def move(self):
+        self.x += 15
+
+    def draw(self):
+        pyxel.blt(self.x, self.y, 0, 0, 96, 16, 32)
+
+class App:
     def __init__(self):
         pyxel.init(200, 200)
-        self.state = "title"  # ゲームの状態を管理
+        pyxel.load("assets/my_resource.pyxres")
+        pyxel.sound(0).set("a3e2c2", "p", "7", "s", 3)
 
-        # ゲームの初期化
-        self.reset_game()
+        self.trains = [Train()]
+        self.player_count = 0
+        self.remaining_time = 600
+        self.is_game_over = False
 
         pyxel.run(self.update, self.draw)
 
-    def reset_game(self):
-        self.passenger_count = 0
-        self.train_speed = 0
-        self.timer = 0
-        self.answer = 0
-        self.state = "title"
-
     def update(self):
-        if self.state == "title":
+        if not self.is_game_over:
+            for train in self.trains:
+                train.move()
+                for passenger in train.passengers:
+                    passenger.move()
+
             if pyxel.btnp(pyxel.KEY_SPACE):
-                self.state = "countdown"
-                self.timer = 180  # カウントダウンの初期値（3秒）
+                self.player_count += 1
+                pyxel.play(0, 0)  
 
-        elif self.state == "countdown":
-            self.timer -= 1
-            if self.timer == 0:
-                self.state = "game"
-                self.timer = 660  # ゲームの制限時間（11秒）
-                self.train_speed = 3  # 固定の電車の速さ
-                self.answer = self.generate_answer()  # 乗っている人数の正解
+            if self.remaining_time > 0:
+                self.remaining_time -= 1
+            else:
+                self.is_game_over = True
 
-        elif self.state == "game":
-            self.timer -= 1
-            if self.timer == 0:
-                self.state = "finish"
+            if self.trains[-1].x > 0:
+                new_train = Train()
+                new_train.x = -200
 
-            # 電車の描画と効果音（未完成）
-            self.draw_train()
-            if pyxel.btnp(pyxel.KEY_SPACE):
-                self.passenger_count += 1
-                pyxel.play(0, 1)  # カウントしたときの音
+                for _ in range(random.randint(0, 3)):
+                    new_train.passengers.append(Passenger(new_train.x))
 
-        elif self.state == "finish":
-            if pyxel.btnp(pyxel.KEY_SPACE):
-                self.state = "result"
+                self.trains.append(new_train)
 
-        elif self.state == "result":
-            if pyxel.btnp(pyxel.KEY_SPACE):
-                if self.passenger_count == self.answer:
-                    self.state = "correct"
-                else:
-                    self.state = "incorrect"
-                self.reset_game()
+        if self.is_game_over and pyxel.btnp(pyxel.KEY_R):  
+            self.restart_game()
 
     def draw(self):
-        pyxel.cls(6)
+        pyxel.cls(7)
+        pyxel.blt(0, 0, 1, 0, 0, 200, 200)
 
-        if self.state == "title":
-            pyxel.text(60, 90, "How Many On Board?", 7)
-            pyxel.text(60, 120, "Press SPACE to start", 7)
+        for train in self.trains:
+            train.draw()
+            pyxel.text(5, 5, f"Player Count: {self.player_count}", 7)
+            pyxel.text(5, 15, f"Time: {self.remaining_time}", 7)
 
-        elif self.state == "countdown":
-            pyxel.text(95, 80, str(self.timer // 60 + 1), 7)
+        if self.is_game_over:
+            if self.player_count == sum(len(train.passengers) for train in self.trains):
+                pyxel.text(55, 60, "Correct!", 10)
+            else:
+                pyxel.text(55, 60, "Incorrect!", 8)
+            pyxel.text(50, 85, "Correct Count: " + str(sum(len(train.passengers) for train in self.trains)), 7)
+            pyxel.text(50, 95, "Your Count: " + str(self.player_count), 7)
+            pyxel.text(50, 105, "Press R to play again", 7)
 
-        elif self.state == "game":
-            pyxel.text(10, 10, f"Passengers: {self.passenger_count}", 7)
-            pyxel.text(10, 20, f"Time: {self.timer // 60}", 7)
+    def restart_game(self):
+        self.player_count = 0
+        self.remaining_time = 600
+        self.is_game_over = False
+        self.trains = [Train()]
 
-        elif self.state == "finish":
-            pyxel.text(80, 80, "Finish!", 7)
-            pyxel.text(70, 120, "Press SPACE to see the result", 7)
-
-        elif self.state == "result":
-            pyxel.text(80, 80, f"Correct Answer: {self.answer}", 7)
-            pyxel.text(70, 120, "Press SPACE to continue", 7)
-
-        elif self.state == "correct":
-            pyxel.text(80, 80, "Correct!", 7)
-            pyxel.text(70, 120, "Press SPACE to play again", 7)
-
-        elif self.state == "incorrect":
-            pyxel.text(80, 80, "Incorrect!", 7)
-            pyxel.text(70, 120, "Press SPACE to play again", 7)
-
-    def draw_train(self):
-        # 電車の描画（未完成）
-        pass
-
-    def generate_answer(self):
-        # 1から20までのランダムな整数を生成
-        return pyxel.frame_count % 20 + 1
-
-TrainGame()
+App()
